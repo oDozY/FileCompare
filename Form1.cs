@@ -21,6 +21,8 @@ namespace FileCompare
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
                     txtLeftDir.Text = dlg.SelectedPath;
+                    PopulateListView(lvwLeftDir, dlg.SelectedPath);
+                    CompareAndColorize();
                 }
 
             }
@@ -40,6 +42,8 @@ namespace FileCompare
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
                     txtRightDir.Text = dlg.SelectedPath;
+                    PopulateListView(lvwRightDir, dlg.SelectedPath);
+                    CompareAndColorize();
                 }
 
             }
@@ -53,6 +57,91 @@ namespace FileCompare
         private void btnCopyFromLeft_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void PopulateListView(ListView lv, string folderPath)
+        {
+            lv.BeginUpdate();
+            lv.Items.Clear();
+            try
+            {
+                var dirs = Directory.EnumerateDirectories(folderPath)
+                            .Select(p => new DirectoryInfo(p))
+                            .OrderBy(d => d.Name);
+                foreach (var d in dirs)
+                {
+                    var item = new ListViewItem(d.Name);
+                    item.SubItems.Add("<DIR>");
+                    item.SubItems.Add(d.LastWriteTime.ToString("g"));
+                    lv.Items.Add(item);
+                }
+                var files = Directory.EnumerateFiles(folderPath)
+                            .Select(p => new FileInfo(p))
+                            .OrderBy(f => f.Name);
+                foreach (var f in files)
+                {
+                    var item = new ListViewItem(f.Name);
+                    item.SubItems.Add(f.Length.ToString("N0") + " 바이트");
+                    item.SubItems.Add(f.LastWriteTime.ToString("g"));
+                    lv.Items.Add(item);
+                }
+                for (int i = 0; i < lv.Columns.Count; i++)
+                {
+                    lv.AutoResizeColumn(i, ColumnHeaderAutoResizeStyle.ColumnContent);
+                }
+            }
+            catch (DirectoryNotFoundException)
+            {
+                MessageBox.Show(this, "폴더를 찾을 수 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show(this, "입출력 오류: " + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                lv.EndUpdate();
+            }
+        }
+
+        private void CompareAndColorize()
+        {
+            var leftItems = lvwLeftDir.Items.Cast<ListViewItem>().ToDictionary(i => i.Text);
+            var rightItems = lvwRightDir.Items.Cast<ListViewItem>().ToDictionary(i => i.Text);
+
+            foreach (ListViewItem lItem in lvwLeftDir.Items)
+            {
+                if (rightItems.TryGetValue(lItem.Text, out ListViewItem rItem))
+                {
+                    DateTime lTime = DateTime.Parse(lItem.SubItems[2].Text);
+                    DateTime rTime = DateTime.Parse(rItem.SubItems[2].Text);
+
+                    if (lTime > rTime) lItem.ForeColor = Color.Red;
+                    else if (lTime < rTime) lItem.ForeColor = Color.Gray;
+                    else lItem.ForeColor = Color.Black;
+                }
+                else
+                {
+                    lItem.ForeColor = Color.Purple;
+                }
+            }
+
+            foreach (ListViewItem rItem in lvwRightDir.Items)
+            {
+                if (leftItems.TryGetValue(rItem.Text, out ListViewItem lItem))
+                {
+                    DateTime rTime = DateTime.Parse(rItem.SubItems[2].Text);
+                    DateTime lTime = DateTime.Parse(lItem.SubItems[2].Text);
+
+                    if (rTime > lTime) rItem.ForeColor = Color.Red;
+                    else if (rTime < lTime) rItem.ForeColor = Color.Gray;
+                    else rItem.ForeColor = Color.Black;
+                }
+                else
+                {
+                    rItem.ForeColor = Color.Purple;
+                }
+            }
         }
     }
 }
