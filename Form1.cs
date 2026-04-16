@@ -51,12 +51,12 @@ namespace FileCompare
 
         private void btnCopyFromRight_Click(object sender, EventArgs e)
         {
-
+            CopySelectedFiles(lvwRightDir, txtRightDir.Text, txtLeftDir.Text);
         }
 
         private void btnCopyFromLeft_Click(object sender, EventArgs e)
         {
-
+            CopySelectedFiles(lvwLeftDir, txtLeftDir.Text, txtRightDir.Text);
         }
 
         private void PopulateListView(ListView lv, string folderPath)
@@ -142,6 +142,51 @@ namespace FileCompare
                     rItem.ForeColor = Color.Purple;
                 }
             }
+        }
+
+        private void CopySelectedFiles(ListView sourceLv, string srcDir, string destDir)
+        {
+            if (string.IsNullOrEmpty(srcDir) || string.IsNullOrEmpty(destDir)) return;
+
+            foreach (ListViewItem item in sourceLv.SelectedItems)
+            {
+                string fileName = item.Text;
+                string sourcePath = Path.Combine(srcDir, fileName);
+                string destPath = Path.Combine(destDir, fileName);
+
+                if (File.Exists(sourcePath))
+                {
+                    if (File.Exists(destPath))
+                    {
+                        FileInfo srcInfo = new FileInfo(sourcePath);
+                        FileInfo destInfo = new FileInfo(destPath);
+
+                        if (destInfo.LastWriteTime > srcInfo.LastWriteTime)
+                        {
+                            string msg = "대상에 동일한 이름의 파일이 이미 있습니다.\n" +
+                                         "대상 파일이 더 신규 파일입니다. 덮어쓰시겠습니까?";
+
+                            if (MessageBox.Show(msg, "덮어쓰기 확인", MessageBoxButtons.YesNo) == DialogResult.No)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+
+                    try
+                    {
+                        File.Copy(sourcePath, destPath, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"오류 발생 ({fileName}): " + ex.Message);
+                    }
+                }
+            }
+
+            PopulateListView(lvwLeftDir, txtLeftDir.Text);
+            PopulateListView(lvwRightDir, txtRightDir.Text);
+            CompareAndColorize();
         }
     }
 }
